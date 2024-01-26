@@ -1,0 +1,249 @@
+-- **Database Documentation**
+
+-- **Schema Overview**
+-- PortfolioHousing Database contains multiple table regarding Nashville Real Estates information.
+
+-- Table					: NashvilleHousing
+-- Columns and Data type	: UniqueID (Float), ParcelID (nvarchar), PropertyAddress (nvarchar), SaleDate (Datetime), SoldAsVacant (nvarchar), OwnerAddress (nvarchar)
+-- Explanation				: This table contain information regarding Nashville Real Estates identifier of property records, address of the property, Property date of sales, Property sales status, and the Owner Address.
+-- Dataset Size				: Approximately 56,373 rows and 24 columns.
+-- Dataset Source			: https://www.kaggle.com/datasets/tmthyjames/nashville-housing-data
+--							       (CTRL+Click to follow link)
+
+
+-- **Introduction**
+-- In these SQL queries, we are performing data cleansing operations on the NashvilleHousing table.
+-- The purpose of this cleansing was to improve data integrity and supports the reliability of the database.
+-- By employing various techniques such as standarizing format, handling missing values, data restructuring, data transformation, removing duplicates, and trim unused data.
+
+
+-- **Assumption and Limitation**
+-- To commence in this data exploration, please recognize that this SQL PortfolioNashvilleRE operates under the following assumptions and acknowledges certain limitations :
+-- 1. The analysis assumes that the provided data contain null values, duplicate entries, and missing values, requiring a focused data cleansing effort.
+-- 2. The effectiveness of the data cleansing process is dependent upon the accuracy, relevance, and completeness of the initial dataset.
+-- 3. The portfolio primarily focuses on nulls, duplicate values, and missing values, but may not cover all potential data quality changes.
+-- 4. Success in data cleansing depends on the appropriateness of the chosen techniques, with external factors like data source discrepancies extending beyond this portfolio's scopes.
+
+
+-- **Queries and Analysis Notes**
+
+-- **Cleansing data in SQL queries : Basic Exploration**
+-- Before starting to do cleansing, I need to look at the overall condition of the data, to decide what needs to be done and the appropriate cleansing techniques.
+
+SELECT *
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+-- 1. Standarize Date Format
+-- The first step we begin to do data normalization, by changing SaleDate datatype to enhance data readability.
+
+-- Notes :
+--	  - Convert SaleDate from Datetime into Date datatype, and then update it to the table.
+
+SELECT SaleDate, CONVERT(DATE, SaleDate)
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET SaleDate = CONVERT(DATE, SaleDate);
+
+
+-- 2. Populate Property Address Data
+--	  There are null values in some of the Property address, we want to populate this null values by self join within the Property Address column.
+
+-- Notes :
+-- - Detect the null values with IS NULL,
+-- - Self join was used to generate the missing Property Address based on ParcelID and UniqueID,
+-- - Then updated the data based on this self join queries.
+
+--	Explore the tables to detect null values
+SELECT *
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing
+ORDER BY ParcelID;
+
+-- Identify missing property address by self-joining on ParcelID and UniqueID
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing a
+JOIN PortfolioNashvilleRE.dbo.NashvilleHousing b
+	ON a.ParcelID = b.ParcelID
+	AND a.[UniqueID ] <> b.[UniqueID ]
+WHERE a.PropertyAddress IS NULL;
+
+-- Update missing property address using self join result
+UPDATE a
+SET PropertyAddress = ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing a
+JOIN PortfolioNashvilleRE.dbo.NashvilleHousing b
+	ON a.ParcelID = b.ParcelID
+	AND a.[UniqueID ] <> b.[UniqueID ]
+WHERE a.PropertyAddress IS NULL;
+
+
+-- 3. Breaking Out Address Into Individual Columns (Address, City, State)
+--	  Separating property address into streets address, property city, and property states are parts of data normalization principles, specifically the first normal form (1NF).
+--	  By having separate columns for streets address, city, and states, it improved easier query, updates, and retrieve specific information.
+--	  Easier to integrate with external APIs systems geologication services such as Google Maps API to display property locations on map, as many real estate application or websites use API.
+
+--	Notes :
+--  - Substring and Charindex was used to extract streets address strings from the beginning of PropertyAddress column up to the position just before the first comma and after the comma,
+--  - Then Alter to create new column PropertySplitAddress (Nvarchar), and update to populate it with the substring split address query.
+
+SELECT PropertyAddress
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+SELECT 
+SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1) AS Address,
+SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress)) AS Address
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+ADD PropertySplitAddress Nvarchar(255);
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET PropertySplitAddress = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1);
+
+
+-- - Alter to create new column PropertySplitCity (Nvarchar), and update to populate it with the substring split address query.
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+ADD PropertySplitCity Nvarchar(255);
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress) +1, LEN(PropertyAddress));
+
+
+SELECT *
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+-- - Here are alternate ways to extract certain substring by using PARSENAME and REPLACE :
+SELECT OwnerAddress
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+SELECT 
+PARSENAME(REPLACE(OwnerAddress, ',', '.'), 3),
+PARSENAME(REPLACE(OwnerAddress, ',', '.'), 2),
+PARSENAME(REPLACE(OwnerAddress, ',', '.'), 1)
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+-- Owner Address
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+ADD OwnerSplitAddress Nvarchar(255);
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 3);
+
+-- Owner City
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+ADD OwnerSplitCity Nvarchar(255);
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET OwnerSplitCity = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 2);
+
+-- Owner State
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+ADD OwnerSplitState Nvarchar(255);
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET OwnerSplitState = PARSENAME(REPLACE(OwnerAddress, ',', '.'), 1);
+
+
+SELECT *
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+
+-- 4. Change Y and N to Yes and No in SoldAsVacant field
+--	  The aim of these query was to ensure consistency, accuracy, and uniformity in the dataset.
+--	  This can improve the clarity of the data and making it easier for users to understand and interpret.
+
+--	Notes :
+--	- To explore the data and identify any anomalies or unexpected values, we count distinct values on SoldAsVacant column,
+--	- This column display only 'Y' and 'N' values, and we want to improved the data readability using CASE function to be 'Yes' and 'No'
+--	- Then we updated this query into the table.
+
+SELECT DISTINCT(SoldAsVacant), COUNT(SoldAsVacant)
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing
+GROUP BY SoldAsVacant
+ORDER BY COUNT(SoldAsVacant);
+
+
+SELECT SoldAsVacant,
+CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+	 WHEN SoldAsVacant = 'N' THEN 'No'
+	 ELSE SoldAsVacant
+	 END
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+UPDATE PortfolioNashvilleRE.dbo.NashvilleHousing
+SET SoldAsVacant = CASE WHEN SoldAsVacant = 'Y' THEN 'Yes'
+						WHEN SoldAsVacant = 'N' THEN 'No'
+						ELSE SoldAsVacant
+						END;
+
+
+
+-- 5. Remove Duplicates
+--	  This script aims to remove duplicate records from the RowNumCTE common table expression.
+
+--	Notes :
+--	- The Try block is used to attemp the deletion of duplicate records and handle any potential errors gracefully,
+--  - The RowNumCTE is created to assign row numbers based on specific columns, facilitating the identification of duplicate records,
+--  - Duplicates are removed by deleting rows with row numbers greater than 1.
+--  - It's important to carefully consider the implication of data deletion, as it can permanently remove data from the database.
+
+BEGIN TRY	
+WITH RowNumCTE AS (
+SELECT *,
+	ROW_NUMBER() OVER (
+	PARTITION BY ParcelID,
+				 PropertyAddress,
+				 SalePrice,
+				 SaleDate,
+				 LegalReference
+				 ORDER BY
+					UniqueID
+				) row_num
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing
+)
+-- Remove duplicate entries, keeping only one row per unique combination of specified columns.
+DELETE 
+FROM RowNumCTE
+WHERE row_num > 1
+ORDER BY PropertyAddress;
+--Commit transaction if all queries succeeded
+	COMMIT TRANSACTION;			
+END TRY	
+
+BEGIN CATCH
+-- Rollback the transaction if any error occurs
+	ROLLBACK TRANSACTION;
+
+-- Display error message for troubleshooting
+PRINT 'An Error Occured: ' + ERROR_MESSAGE();
+END CATCH
+
+
+
+-- 6. Delete Unused Columns
+--	  As we have separated PropertyAddress and OwnerAddress into specified address, these column are no longer needed and can be deleted to remove unnecessary clutter, making it easier to work with the data, and reducing the risk of errors or confusion during analysis.
+--	  Carefully consider the implication of permanently deleting columns from a database table, as this action cannot be undone and may result in the loss of valuable data.
+
+--	Notes :
+--	- Alter table was used to indicate that we want to change it's structure.
+--	- Then drop column to remove permanently OwnerAddress and PropertyAddress columns.
+
+SELECT *
+FROM PortfolioNashvilleRE.dbo.NashvilleHousing;
+
+
+ALTER TABLE PortfolioNashvilleRE.dbo.NashvilleHousing
+DROP COLUMN OwnerAddress, PropertyAddress;
+
+
+-- **Conclusion**
+-- In summary, this SQL data cleansing portfolio showcases effective techniques for enhancing data integrity and reliability in the Nashville Real Estate housing dataset.
+-- By standarizing formats, handling missing values, removing duplicates, we have applied a strong foundation for a robust data analyst.
