@@ -3,12 +3,12 @@
 -- **Schema Overview**
 -- PortfolioHousing Database contains multiple table regarding Nashville Real Estates information.
 
--- Table					: NashvilleHousing
--- Columns and Data type	: UniqueID (Float), ParcelID (nvarchar), PropertyAddress (nvarchar), SaleDate (Datetime), SoldAsVacant (nvarchar), OwnerAddress (nvarchar)
+-- Table				: NashvilleHousing
+-- Columns and Data type		: UniqueID (Float), ParcelID (nvarchar), PropertyAddress (nvarchar), SaleDate (Datetime), SoldAsVacant (nvarchar), OwnerAddress (nvarchar)
 -- Explanation				: This table contain information regarding Nashville Real Estates identifier of property records, address of the property, Property date of sales, Property sales status, and the Owner Address.
 -- Dataset Size				: Approximately 56,373 rows and 24 columns.
 -- Dataset Source			: https://www.kaggle.com/datasets/tmthyjames/nashville-housing-data
---							       (CTRL+Click to follow link)
+--				         (CTRL+Click to follow link)
 
 
 -- **Introduction**
